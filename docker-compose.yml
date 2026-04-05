@@ -1,6 +1,7 @@
 services:
   lazyfp:
-    image: ghcr.io/kiss2u/lazyfp:latest
+    build: .
+    # image: ghcr.io/kiss2u/lazyfp:latest
     container_name: lazyfp
     restart: unless-stopped
     ports:
