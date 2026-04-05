@@ -1,14 +1,11 @@
 services:
   lazyfp:
-    build: .
-    # image: ghcr.io/deadbeeeef/lazyfp:latest
+    image: ghcr.io/kiss2u/lazyfp:latest
     container_name: lazyfp
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
       - ./fp:/app/fp
-      # - ./invoice_summary.xlsx:/app/invoice_summary.xlsx
-      # - ./invoice_cache.json:/app/invoice_cache.json
     environment:
       - PYTHONUNBUFFERED=1
