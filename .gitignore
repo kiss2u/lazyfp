@@ -1,13 +1,35 @@
+# Python
 __pycache__/
-venv/
-*.log
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Environment
 .env
+*.log
 
 # Data and Outputs
-fp/
-zip/
+fp/dump/
+fp/organized/
+fp/*.pdf
 invoice_cache.json
 invoice_summary.xlsx
-debug_output.txt
+
+# Lock files (keep pyproject.toml, ignore uv.lock for portability)
+uv.lock

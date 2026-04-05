@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p fp/dump fp/organized static config
+RUN mkdir -p fp/dump fp/organized
 
 EXPOSE 8000
 
