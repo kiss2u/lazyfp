@@ -365,6 +365,10 @@ async def organize_invoices(move: bool = False):
                 new_name = f"{inv_suffix}-{safe_seller}-{amount}.pdf"
                 dst_path = os.path.join(target_dir, new_name)
 
+                if os.path.exists(dst_path):
+                    logging.info("Skipping duplicate organized file: %s (src: %s)", new_name, filename)
+                    continue
+
                 if move:
                     shutil.move(src_path, dst_path)
                 else:
@@ -388,9 +392,15 @@ async def export_quarter_zip(purchaser: str, quarter: str):
 
     mem_zip = io.BytesIO()
     files_to_zip = [f for f in os.listdir(target_dir) if f.lower().endswith(".pdf")]
+    seen_names = set()
+    unique_files = []
+    for fname in files_to_zip:
+        if fname not in seen_names:
+            seen_names.add(fname)
+            unique_files.append(fname)
 
     with zipfile.ZipFile(mem_zip, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for fname in files_to_zip:
+        for fname in unique_files:
             fpath = os.path.join(target_dir, fname)
             zf.write(fpath, arcname=fname)
 
