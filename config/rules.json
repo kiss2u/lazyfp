@@ -2,16 +2,12 @@
   "invoice_no": {
     "primary": [
       {"pattern": "发\\s*票\\s*号\\s*码[:：]\\s*(\\d+)", "flags": 0, "desc": "Standard invoice code header"},
-      {"pattern": "发票号码[:：]?\\s*(\\d{20}|\\d{8,12})", "flags": 0, "desc": "Full-electric 20-digit or traditional 8-12 digit"},
-      {"pattern": "客户账号\\s*(\\d+)", "flags": 0, "desc": "China Mobile customer account as identifier"}
+      {"pattern": "发票号码[:：]?\\s*(\\d{20}|\\d{8,12})", "flags": 0, "desc": "Full-electric 20-digit or traditional 8-12 digit"}
     ],
     "fallback": [
       {"pattern": "\\b\\d{20}\\b", "flags": 0, "desc": "Pure 20-digit number (full-electric)"},
-      {"pattern": "集团编号[:：]?\\s*(\\d+)", "flags": 0, "desc": "China Mobile bill group number"},
       {"pattern": "监\\s*(\\d{8})\\b", "flags": 0, "desc": "Old unified invoice monitor number"},
-      {"pattern": "号码[:：]?(\\d{8,20})", "flags": 0, "desc": "Generic number field"},
-      {"pattern": "数电.*?号码[:：]?\\s*(\\d{20})", "flags": 0, "desc": "Digital-electric invoice remark number"},
-      {"pattern": "^(\\d{20}|\\d{8,12})", "flags": 0, "desc": "Filename reverse-lookup", "source": "filename"}
+      {"pattern": "数电.*?号码[:：]?\\s*(\\d{20})", "flags": 0, "desc": "Digital-electric invoice remark number"}
     ]
   },
   "date": {
@@ -49,7 +45,8 @@
     "primary": [
       {"pattern": "(?:购)?名称[:：](.+?)(?:销|售|卖|纳税|统一|地址|开户)", "flags": 0, "desc": "Purchaser name label"},
       {"pattern": "买名称\\s*[:：]?\\s*([\\u4e00-\\u9fa5()（）]{2,50}?)(?:售名称|方方|方信)", "flags": 0, "desc": "JD-style: 买名称 without colon"},
-      {"pattern": "客户\\s+([\\u4e00-\\u9fa5()（）]{2,50})", "flags": 0, "desc": "China Mobile customer name"}
+      {"pattern": "打印次数\\d+([\\u4e00-\\u9fa5()（）]{2,50})打印日期", "flags": 0, "desc": "China Mobile customer name (flat text)"},
+      {"pattern": "客户\\s+([\\u4e00-\\u9fa5()（）]{2,50})\\s+集团", "flags": 0, "desc": "China Mobile customer name (normal text)"}
     ],
     "fallback": [
       {"pattern": "名\\s*称\\s*[:：]\\s*([^\\s]+)", "flags": 0, "desc": "Generic name label"},

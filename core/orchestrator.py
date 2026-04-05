@@ -311,6 +311,7 @@ class Orchestrator:
             "发票代码", "校验码", "机器编号",
             "电子发票", "普通发票", "专用发票",
             "发票专用章", "国家税务总局",
+            "对账单", "中国移动通信",
         ]
         text_lower = text
         matches = sum(1 for kw in invoice_keywords if kw in text_lower)

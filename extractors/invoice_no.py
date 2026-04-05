@@ -17,6 +17,13 @@ class InvoiceNoExtractor(BaseExtractor):
         return True
 
     def fallback(self, text: str, filename: str) -> Optional[str]:
+        m = re.search(r"客户账号\s*(\d+)", text)
+        if m:
+            account = m.group(1)
+            dm = re.search(r"打印日期\s*(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})", text)
+            if dm:
+                date_key = dm.group(1) + dm.group(2).zfill(2) + dm.group(3).zfill(2)
+                return account + date_key
         nums_8 = re.findall(r"\b(\d{8})\b", text)
         for n in nums_8:
             if n.startswith("202"):
