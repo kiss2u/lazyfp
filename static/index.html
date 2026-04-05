@@ -22,14 +22,33 @@
         }
     </script>
     <style>
-        [x-cloak] {
-            display: none !important;
-        }
+        [x-cloak] { display: none !important; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .dark .skeleton { background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%); background-size: 200% 100%; }
+        @keyframes toast-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toast-out { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        .toast-enter { animation: toast-in 0.3s ease-out forwards; }
+        .toast-exit { animation: toast-out 0.3s ease-in forwards; }
     </style>
 </head>
 
 <body class="h-full bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-gray-100 transition-colors duration-200"
-    x-data="app()" x-init="initApp()">
+    x-data="app()" x-init="initApp()" @keydown.window="handleGlobalKeys($event)">
+
+    <!-- Toast Container -->
+    <div class="fixed top-4 right-4 z-[100] space-y-2" x-cloak>
+        <template x-for="toast in toasts" :key="toast.id">
+            <div class="toast-enter px-4 py-3 rounded-lg shadow-lg text-white text-sm max-w-sm"
+                 :class="{
+                     'bg-green-600': toast.type === 'success',
+                     'bg-red-600': toast.type === 'error',
+                     'bg-blue-600': toast.type === 'info'
+                 }"
+                 x-text="toast.message">
+            </div>
+        </template>
+    </div>
 
     <!-- Top Navigation -->
     <nav class="bg-white dark:bg-darkcard border-b border-gray-200 dark:border-gray-700 shadow-sm">
@@ -39,27 +58,25 @@
                     <span class="text-xl font-bold text-primary">LazyFP</span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Language Toggle -->
+                    <button @click="showQueue = !showQueue"
+                        class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition relative"
+                        :class="showQueue ? 'bg-indigo-100 dark:bg-indigo-900' : ''">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        <span x-show="queueSummary.processing > 0" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center" x-text="queueSummary.processing"></span>
+                    </button>
                     <button @click="toggleLang()"
                         class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                         <span x-text="lang === 'en' ? '中文' : 'English'" class="text-sm font-medium"></span>
                     </button>
-                    <!-- Theme Toggle -->
                     <button @click="toggleTheme()"
                         class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                        <!-- Sun Icon -->
-                        <svg x-show="isDark" class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
-                            </path>
+                        <svg x-show="isDark" class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
-                        <!-- Moon Icon -->
-                        <svg x-show="!isDark" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M20.354 24.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
-                            </path>
+                        <svg x-show="!isDark" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 24.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                         </svg>
                     </button>
                 </div>
@@ -70,77 +87,113 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
 
+        <!-- Queue Panel -->
+        <div x-show="showQueue" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-4" x-transition:enter-end="opacity-100 translate-y-0" class="mb-6 bg-white dark:bg-darkcard rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2">
+                    <svg x-show="queueSummary.processing > 0" class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <h3 class="font-bold text-lg" x-text="t('uploadQueue')"></h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="pollQueue()" class="text-sm text-primary hover:underline" x-text="t('refresh')"></button>
+                    <button @click="showQueue = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">&times;</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-4 mb-4 text-center">
+                <div class="bg-gray-100 dark:bg-gray-700 rounded p-2">
+                    <div class="text-2xl font-bold" x-text="queueSummary.pending"></div>
+                    <div class="text-xs text-gray-500" x-text="t('pending')"></div>
+                </div>
+                <div class="bg-blue-100 dark:bg-blue-900 rounded p-2">
+                    <div class="text-2xl font-bold" x-text="queueSummary.processing"></div>
+                    <div class="text-xs text-gray-500" x-text="t('processing')"></div>
+                </div>
+                <div class="bg-green-100 dark:bg-green-900 rounded p-2">
+                    <div class="text-2xl font-bold" x-text="queueSummary.completed"></div>
+                    <div class="text-xs text-gray-500" x-text="t('completed')"></div>
+                </div>
+                <div class="bg-red-100 dark:bg-red-900 rounded p-2">
+                    <div class="text-2xl font-bold" x-text="queueSummary.failed"></div>
+                    <div class="text-xs text-gray-500" x-text="t('failed')"></div>
+                </div>
+            </div>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+                <template x-for="task in queueTasks.slice().reverse().slice(0, 20)" :key="task.id">
+                    <div class="flex items-center gap-3 p-2 rounded bg-gray-50 dark:bg-gray-800 text-sm">
+                        <span class="w-2 h-2 rounded-full flex-shrink-0"
+                            :class="{
+                                'bg-gray-400': task.status === 'pending',
+                                'bg-blue-500 animate-pulse': task.status === 'processing',
+                                'bg-green-500': task.status === 'completed',
+                                'bg-red-500': task.status === 'failed'
+                            }"></span>
+                        <span class="flex-1 truncate" x-text="task.filename"></span>
+                        <span class="text-xs text-gray-500" x-text="task.progress + '%'"></span>
+                        <span class="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <span class="h-full bg-blue-500 transition-all" :style="'width:' + task.progress + '%'"></span>
+                        </span>
+                        <span class="text-xs capitalize w-20 text-right"
+                            :class="{
+                                'text-gray-500': task.status === 'pending',
+                                'text-blue-500': task.status === 'processing',
+                                'text-green-500': task.status === 'completed',
+                                'text-red-500': task.status === 'failed'
+                            }"
+                            x-text="task.status"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
         <!-- Controls -->
         <div class="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
             <div class="flex gap-2 w-full md:w-auto">
-                <input type="file" multiple @change="handleUpload" x-ref="fileInput" class="hidden">
-                <button @click="$refs.fileInput.click()"
-                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                <input type="file" multiple @change="handleUpload" x-ref="fileInput" class="hidden" accept=".pdf">
+                <button @click="$refs.fileInput.click()" :disabled="uploading"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 disabled:opacity-50">
+                    <svg x-show="!uploading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
                     </svg>
-                    <span x-text="t('upload')"></span>
-                </button>
-                <button @click="fetchData()"
-                    class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                        </path>
+                    <svg x-show="uploading" class="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span x-text="t('refresh')"></span>
-                </button>
-                <button @click="handleDeduplicate()" :disabled="dedupLoading"
-                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 disabled:opacity-50">
-                    <svg x-show="!dedupLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                        </path>
-                    </svg>
-                    <svg x-show="dedupLoading" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                        </circle>
-                        <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
-                    </svg>
-                    <span x-text="t('deduplicate')"></span>
+                    <span x-text="uploading ? t('uploading') : t('upload')"></span>
                 </button>
                 <button @click="handleOrganize()" :disabled="orgLoading"
                     class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 disabled:opacity-50">
                     <svg x-show="!orgLoading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                     </svg>
-                    <svg x-show="orgLoading" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                        </circle>
-                        <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
+                    <svg x-show="orgLoading" class="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     <span x-text="t('organize')"></span>
                 </button>
             </div>
 
             <div class="flex gap-4 w-full md:w-auto items-center">
-                <!-- Group Toggle -->
                 <div class="flex items-center">
                     <button @click="isGrouped = !isGrouped"
                         :class="isGrouped ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'"
                         class="px-4 py-2 rounded shadow transition flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
                         </svg>
                         <span x-text="t('toggleGroup')"></span>
                     </button>
                 </div>
-
+                <button @click="loadUnrecognized()" class="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <span x-text="t('unrecognized')"></span>
+                    <span x-show="unrecognizedFiles.length > 0" class="bg-white text-amber-700 text-xs font-bold px-1.5 py-0.5 rounded-full" x-text="unrecognizedFiles.length"></span>
+                </button>
                 <div class="w-full md:w-64">
                     <input x-model="search" type="text" :placeholder="t('searchPlaceholder')"
                         class="w-full px-4 py-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkcard focus:outline-none focus:ring-2 focus:ring-primary">
@@ -170,100 +223,67 @@
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                            <th @click="sortBy('date')"
-                                class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('date')"></span> <span x-show="sortCol === 'date'"
-                                    x-text="sortAsc ? '↑' : '↓'"></span>
+                            <th @click="sortBy('date')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <span x-text="t('date')"></span> <span x-show="sortCol === 'date'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </th>
-                            <th @click="sortBy('invoice_no')"
-                                class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('invoiceNo')"></span> <span x-show="sortCol === 'invoice_no'"
-                                    x-text="sortAsc ? '↑' : '↓'"></span>
+                            <th @click="sortBy('invoice_no')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <span x-text="t('invoiceNo')"></span> <span x-show="sortCol === 'invoice_no'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </th>
-                            <th @click="sortBy('purchaser')"
-                                class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('purchaser')"></span> <span x-show="sortCol === 'purchaser'"
-                                    x-text="sortAsc ? '↑' : '↓'"></span>
+                            <th @click="sortBy('purchaser')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <span x-text="t('purchaser')"></span> <span x-show="sortCol === 'purchaser'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </th>
-                            <th @click="sortBy('seller')"
-                                class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('seller')"></span> <span x-show="sortCol === 'seller'"
-                                    x-text="sortAsc ? '↑' : '↓'"></span>
+                            <th @click="sortBy('seller')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <span x-text="t('seller')"></span> <span x-show="sortCol === 'seller'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </th>
-                            <th @click="sortBy('total_amount')"
-                                class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('amount')"></span> <span x-show="sortCol === 'total_amount'"
-                                    x-text="sortAsc ? '↑' : '↓'"></span>
+                            <th @click="sortBy('total_amount')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <span x-text="t('amount')"></span> <span x-show="sortCol === 'total_amount'" x-text="sortAsc ? '↑' : '↓'"></span>
                             </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                                x-text="t('actions')"></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" x-text="t('actions')"></th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-darkcard divide-y divide-gray-200 dark:divide-gray-700">
                         <template x-for="(item, index) in filteredData" :key="item.invoice_no || index">
-                            <!-- Alpine v3 supports multiple roots in loop -->
-                            <!-- Combine tr and detail row in a template tag if possible, but separate trs work with x-for -->
                             <template x-if="true">
-                    <tbody class="border-b border-gray-200 dark:border-gray-700">
-                        <tr @click="toggleExpand(item.invoice_no || item.filename)"
-                            class="hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-4 h-4 transition-transform duration-200"
-                                        :class="isExpanded(item.invoice_no || item.filename) ? 'transform rotate-90' : ''"
-                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 5l7 7-7 7"></path>
-                                    </svg>
-                                    <span x-text="item.date"></span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white"
-                                x-text="item.invoice_no"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs"
-                                :title="item.purchaser" x-text="item.purchaser"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs"
-                                :title="item.seller" x-text="item.seller"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-green-400"
-                                x-text="'¥' + (item.total_amount || 0).toFixed(2)"></td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
-                                <button @click="deleteItem(item)"
-                                    class="text-red-600 hover:text-red-900 dark:hover:text-red-400 ml-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </td>
+                                <tr @click="toggleExpand(item.invoice_no || item.filename)" class="hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 transition-transform duration-200" :class="isExpanded(item.invoice_no || item.filename) ? 'transform rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                            </svg>
+                                            <span x-text="item.date"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white" x-text="item.invoice_no"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" :title="item.purchaser" x-text="item.purchaser"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" :title="item.seller" x-text="item.seller"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-green-400" x-text="'¥' + (item.total_amount || 0).toFixed(2)"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
+                                        <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900 dark:hover:text-red-400 ml-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr x-show="isExpanded(item.invoice_no || item.filename)" x-transition class="bg-gray-50 dark:bg-gray-900">
+                                    <td colspan="6" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <span class="font-semibold block mb-1" x-text="t('quarter') + ':'"></span>
+                                                <span x-text="item.quarter || '—'"></span>
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <span class="font-semibold block mb-1">Filename:</span>
+                                                <span x-text="item.filename || '—'" class="text-xs break-all"></span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                        <tr x-show="!loading && filteredData.length === 0">
+                            <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400" x-text="t('noData')"></td>
                         </tr>
-                        <!-- Detail Row -->
-                        <tr x-show="isExpanded(item.invoice_no || item.filename)" x-transition
-                            class="bg-gray-50 dark:bg-gray-900">
-                            <td colspan="6" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <span class="font-semibold block mb-1" x-text="t('quarter') + ':'"></span>
-                                        <span x-text="item.quarter"></span>
-                                    </div>
-                                    <div>
-                                        <span class="font-semibold block mb-1">Filenames:</span>
-                                        <ul class="list-disc list-inside space-y-1">
-                                            <template x-for="fname in item.filename.split(', ')" :key="fname">
-                                                <li x-text="fname" class="truncate"></li>
-                                            </template>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                    </template>
-                    </template>
-                    <tr x-show="filteredData.length === 0">
-                        <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
-                            x-text="t('noData')"></td>
-                    </tr>
                     </tbody>
                 </table>
             </div>
@@ -273,68 +293,44 @@
         <div x-show="isGrouped" class="space-y-6">
             <template x-for="purchaserGroup in groupedData" :key="purchaserGroup.name">
                 <div class="space-y-4">
-                    <!-- Purchaser Header -->
                     <div class="flex items-center gap-3 pb-2 border-b-2 border-primary">
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100" x-text="purchaserGroup.name">
-                        </h2>
-                        <span
-                            class="px-2 py-0.5 rounded text-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            x-text="'¥' + purchaserGroup.total.toFixed(2)"></span>
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100" x-text="purchaserGroup.name"></h2>
+                        <span class="px-2 py-0.5 rounded text-sm bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" x-text="'¥' + purchaserGroup.total.toFixed(2)"></span>
                     </div>
-
                     <template x-for="quarter in purchaserGroup.quarters" :key="quarter.name">
-                        <div
-                            class="bg-white dark:bg-darkcard shadow rounded-lg overflow-hidden ml-4 border-l-4 border-gray-300 dark:border-gray-600">
-                            <div
-                                class="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                        <div class="bg-white dark:bg-darkcard shadow rounded-lg overflow-hidden ml-4 border-l-4 border-gray-300 dark:border-gray-600">
+                            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-lg font-bold text-gray-900 dark:text-white"
-                                        x-text="quarter.name"></span>
-                                    <span
-                                        class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-                                        x-text="t('quarter')"></span>
+                                    <span class="text-lg font-bold text-gray-900 dark:text-white" x-text="quarter.name"></span>
+                                    <span class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200" x-text="t('quarter')"></span>
                                 </div>
                                 <div class="flex items-center gap-4">
-                                    <button @click="exportZip(purchaserGroup.name, quarter.name)"
-                                        class="text-sm bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded transition flex items-center gap-1">
+                                    <button @click="exportZip(purchaserGroup.name, quarter.name)" class="text-sm bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded transition flex items-center gap-1">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4">
-                                            </path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                         </svg>
                                         <span x-text="t('exportZip')"></span>
                                     </button>
-                                    <div class="text-lg font-bold text-green-600 dark:text-green-400"
-                                        x-text="'¥' + quarter.total.toFixed(2)"></div>
+                                    <div class="text-lg font-bold text-green-600 dark:text-green-400" x-text="'¥' + quarter.total.toFixed(2)"></div>
                                 </div>
                             </div>
-
                             <div class="p-4 space-y-4">
                                 <template x-for="seller in quarter.sellers" :key="seller.name">
                                     <div class="border border-gray-200 dark:border-gray-700 rounded-md">
-                                        <div class="px-4 py-2 bg-white dark:bg-gray-900 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                                            @click="seller.expanded = !seller.expanded" x-data="{ expanded: false }">
-                                            <div class="font-medium text-gray-700 dark:text-gray-300"
-                                                x-text="seller.name"></div>
+                                        <div class="px-4 py-2 bg-white dark:bg-gray-900 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" @click="seller.expanded = !seller.expanded" x-data="{ expanded: false }">
+                                            <div class="font-medium text-gray-700 dark:text-gray-300" x-text="seller.name"></div>
                                             <div class="flex items-center gap-4">
-                                                <span class="text-sm text-gray-500"
-                                                    x-text="seller.items.length + ' invoices'"></span>
-                                                <span class="font-bold text-gray-900 dark:text-white"
-                                                    x-text="'¥' + seller.total.toFixed(2)"></span>
+                                                <span class="text-sm text-gray-500" x-text="seller.items.length + ' invoices'"></span>
+                                                <span class="font-bold text-gray-900 dark:text-white" x-text="'¥' + seller.total.toFixed(2)"></span>
                                             </div>
                                         </div>
-
-                                        <!-- Expanded Items in Group -->
-                                        <div x-show="seller.expanded"
-                                            class="border-t border-gray-100 dark:border-gray-800 p-2 bg-gray-50 dark:bg-gray-900"
-                                            x-transition>
+                                        <div x-show="seller.expanded" class="border-t border-gray-100 dark:border-gray-800 p-2 bg-gray-50 dark:bg-gray-900" x-transition>
                                             <table class="min-w-full text-sm">
                                                 <template x-for="item in seller.items" :key="item.filename">
                                                     <tr class="text-gray-600 dark:text-gray-400">
                                                         <td class="px-2 py-1" x-text="item.date"></td>
                                                         <td class="px-2 py-1" x-text="item.invoice_no"></td>
-                                                        <td class="px-2 py-1 text-right"
-                                                            x-text="'¥' + item.total_amount"></td>
+                                                        <td class="px-2 py-1 text-right" x-text="'¥' + item.total_amount"></td>
                                                     </tr>
                                                 </template>
                                             </table>
@@ -352,256 +348,482 @@
         </div>
     </main>
 
+    <!-- Unrecognized Files Modal -->
+    <div x-show="showUnrecognized" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-60" @keydown.escape.window="showUnrecognized = false">
+        <div class="bg-white dark:bg-darkcard rounded-lg shadow-2xl w-[90vw] max-w-4xl max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white" x-text="t('unrecognizedTitle')"></h2>
+                <button @click="showUnrecognized = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl">&times;</button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1">
+                <template x-if="unrecognizedFiles.length === 0">
+                    <p class="text-center text-gray-500 dark:text-gray-400 py-8" x-text="t('noUnrecognized')"></p>
+                </template>
+                <div class="space-y-3">
+                    <template x-for="item in unrecognizedFiles" :key="item.filename">
+                        <div class="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <p class="font-medium text-gray-900 dark:text-white text-sm" x-text="item.filename"></p>
+                                    <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                        <div><span class="font-semibold" x-text="t('date') + ':'"></span> <span x-text="item.date || '—'"></span></div>
+                                        <div><span class="font-semibold" x-text="t('purchaser') + ':'"></span> <span x-text="item.purchaser || '—'"></span></div>
+                                        <div><span class="font-semibold" x-text="t('seller') + ':'"></span> <span x-text="item.seller || '—'"></span></div>
+                                        <div><span class="font-semibold" x-text="t('invoiceNo') + ':'"></span> <span x-text="item.invoice_no || '—'"></span></div>
+                                    </div>
+                                    <details class="mt-2">
+                                        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-gray-200">Raw Text</summary>
+                                        <pre class="mt-1 text-xs bg-gray-900 text-green-300 p-2 rounded overflow-auto max-h-32" x-text="item.raw_text || '(empty)'"></pre>
+                                    </details>
+                                </div>
+                                <button @click="deleteUnrecognized(item.filename)" class="text-red-400 hover:text-red-600 ml-3">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debug Panel (Ctrl+Shift+D) -->
+    <div x-show="showDebug" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-60" @keydown.escape.window="showDebug = false">
+        <div class="bg-gray-900 text-green-400 rounded-lg shadow-2xl w-[90vw] max-w-4xl max-h-[85vh] flex flex-col font-mono text-sm">
+            <div class="flex justify-between items-center p-4 border-b border-gray-700">
+                <h2 class="text-lg font-bold text-white">Debug Panel <span class="text-xs text-gray-400 font-normal">(Ctrl+Shift+D)</span></h2>
+                <button @click="showDebug = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 space-y-4">
+                <div>
+                    <label class="text-gray-400 text-xs block mb-1">Raw Extracted Text</label>
+                    <textarea x-model="debugRawText" readonly class="w-full h-40 bg-gray-800 text-green-300 p-2 rounded border border-gray-700 text-xs resize-none" placeholder="Click a failed invoice row to load raw text..."></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-gray-400 text-xs block mb-1">Extraction Result</label>
+                        <pre x-text="JSON.stringify(debugResult, null, 2)" class="w-full h-40 bg-gray-800 p-2 rounded border border-gray-700 text-xs overflow-auto"></pre>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-gray-400 text-xs block mb-1">Regex Pattern</label>
+                            <input x-model="debugPattern" type="text" placeholder="e.g. (\d{4}年\d{1,2}月\d{1,2}日)" class="w-full bg-gray-800 text-green-300 p-2 rounded border border-gray-700 text-xs" @keydown.enter="testDebugRegex()">
+                        </div>
+                        <button @click="testDebugRegex()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">Test Regex</button>
+                        <div x-show="debugMatchResult">
+                            <label class="text-gray-400 text-xs block mb-1">Match Result</label>
+                            <pre x-text="JSON.stringify(debugMatchResult, null, 2)" class="w-full h-24 bg-gray-800 p-2 rounded border border-gray-700 text-xs overflow-auto"></pre>
+                        </div>
+                        <div x-show="debugRegexError" class="text-red-400 text-xs" x-text="debugRegexError"></div>
+                        <button x-show="debugMatchResult && debugMatchResult.valid && debugMatchResult.matches.length > 0"
+                            @click="addDebugRule()"
+                            class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs">
+                            Add to Rules
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- App Logic -->
     <script>
         function app() {
             return {
                 invoices: [],
-                expandedItems: [], // Init expanded items array
+                expandedItems: [],
                 search: '',
                 lang: localStorage.getItem('lang') || 'zh',
                 isDark: localStorage.getItem('theme') === 'dark',
                 loading: false,
-                dedupLoading: false,
+                uploading: false,
                 orgLoading: false,
-
-                // Sorting
-                sortCol: 'quarter', // default sort
+                sortCol: 'quarter',
                 sortAsc: true,
-
-                // Grouping
                 isGrouped: false,
+                toasts: [],
+                toastId: 0,
+                showQueue: false,
+                queueTasks: [],
+                queueSummary: { pending: 0, processing: 0, completed: 0, failed: 0 },
+                queuePollTimer: null,
+                showDebug: false,
+                debugRawText: '',
+                debugResult: null,
+                debugPattern: '',
+                debugMatchResult: null,
+                debugRegexError: null,
+                debugField: 'invoice_no',
 
                 translations: {
                     en: {
-                        upload: "Upload PDF",
-                        refresh: "Refresh & Scan",
-                        deduplicate: "Deduplicate",
-                        toggleGroup: "Group Results",
-                        searchPlaceholder: "Search invoices...",
-                        totalInvoices: "Total Invoices",
-                        totalAmount: "Total Amount",
-                        uniqueSellers: "Unique Sellers",
-                        date: "Date",
-                        invoiceNo: "Invoice No",
-                        purchaser: "Purchaser",
-                        seller: "Seller",
-                        amount: "Amount",
-                        actions: "Actions",
-                        noData: "No invoices found.",
-                        deduplicateSuccess: "Deduplication complete! Moved duplicates to 'dump/'.",
-                        deduplicateEmpty: "No duplicates found.",
-                        quarter: "Quarter",
-                        organize: "Organize Invoices",
-                        organizeSuccess: "Organization complete.",
-                        organizeError: "Failed to organize.",
-                        exportZip: "Export ZIP",
-                        exportError: "Export failed. Please organize first."
+                        upload: "Upload PDF", uploading: "Uploading...",
+                        toggleGroup: "Quarter View", searchPlaceholder: "Search invoices...",
+                        totalInvoices: "Total Invoices", totalAmount: "Total Amount", uniqueSellers: "Unique Sellers",
+                        date: "Date", invoiceNo: "Invoice No", purchaser: "Purchaser", seller: "Seller",
+                        amount: "Amount", actions: "Actions", noData: "No invoices found.",
+                        quarter: "Quarter", organize: "Dedup & Organize", organizeSuccess: "Organization complete.",
+                        organizeError: "Failed to organize.", exportZip: "Export ZIP", exportError: "Export failed. Please organize first.",
+                        uploadQueue: "Upload Queue", pending: "Pending", processing: "Processing",
+                        completed: "Completed", failed: "Failed",
+                        organizeConfirm: "This will deduplicate (move duplicates to dump) then organize by purchaser/quarter. Continue?",
+                        unrecognized: "Review", unrecognizedTitle: "Unrecognized Files", noUnrecognized: "No unrecognized files.",
+                        unrecognizedConfirm: "Delete this file?",
+                        invoices: "Invoices", dateRange: "Date Range", total: "Total"
                     },
                     zh: {
-                        upload: "上传发票",
-                        refresh: "刷新与扫描",
-                        deduplicate: "一键去重",
-                        toggleGroup: "分组展示",
-                        searchPlaceholder: "搜索发票...",
-                        totalInvoices: "发票总数",
-                        totalAmount: "总金额",
-                        uniqueSellers: "销售方数量",
-                        date: "开票日期",
-                        invoiceNo: "发票号码",
-                        purchaser: "购买方",
-                        seller: "销售方",
-                        amount: "金额",
-                        actions: "操作",
-                        noData: "未找到发票。",
-                        deduplicateSuccess: "去重完成！已将重复文件移至 'dump/' 文件夹。",
-                        deduplicateEmpty: "未发现重复发票。",
-                        quarter: "季度",
-                        organize: "整理发票",
-                        organizeSuccess: "整理完成。",
-                        organizeError: "整理失败。",
-                        exportZip: "导出ZIP",
-                        exportError: "导出失败，请先整理发票。"
+                        upload: "上传发票", uploading: "上传中...",
+                        toggleGroup: "季度展示", searchPlaceholder: "搜索发票...",
+                        totalInvoices: "发票总数", totalAmount: "总金额", uniqueSellers: "销售方数量",
+                        date: "开票日期", invoiceNo: "发票号码", purchaser: "购买方", seller: "销售方",
+                        amount: "金额", actions: "操作", noData: "未找到发票。",
+                        quarter: "季度", organize: "去重整理", organizeSuccess: "整理完成。",
+                        organizeError: "整理失败。", exportZip: "导出ZIP", exportError: "导出失败，请先整理发票。",
+                        uploadQueue: "上传队列", pending: "排队中", processing: "处理中",
+                        completed: "已完成", failed: "失败",
+                        organizeConfirm: "将先去重（重复发票移入 dump），再按购买方/季度整理，是否继续？",
+                        unrecognized: "待确认", unrecognizedTitle: "疑似非发票文件", noUnrecognized: "没有需要确认的文件。",
+                        unrecognizedConfirm: "确定删除此文件吗？",
+                        invoices: "发票数", dateRange: "日期范围", total: "合计金额"
                     }
                 },
 
-                t(key) {
-                    return this.translations[this.lang][key] || key;
+                t(key) { return this.translations[this.lang][key] || key; },
+
+                formatDateShort(dateStr) {
+                    if (!dateStr) return '—';
+                    const m = dateStr.match(/(\d{4})[年\-](\d{1,2})[月\-](\d{1,2})/);
+                    if (m) return `${m[2]}月${m[3]}日`;
+                    return dateStr;
                 },
+
+                formatInvoiceNo(invoiceNo) {
+                    if (!invoiceNo) return '—';
+                    if (invoiceNo.length > 6) return '...' + invoiceNo.slice(-6);
+                    return invoiceNo;
+                },
+
+                get sellerGroups() {
+                    const data = this.filteredData;
+                    const groups = {};
+                    for (const item of data) {
+                        const seller = item.seller || 'Unknown';
+                        if (!groups[seller]) {
+                            groups[seller] = { seller, items: [], total: 0, count: 0, dates: [] };
+                        }
+                        groups[seller].items.push(item);
+                        groups[seller].total += (item.total_amount || 0);
+                        groups[seller].count += 1;
+                        if (item.date) groups[seller].dates.push(item.date);
+                    }
+                    return Object.values(groups).sort((a, b) => b.total - a.total).map(g => {
+                        const dates = g.dates.filter(Boolean);
+                        let dateRange = '—';
+                        if (dates.length > 0) {
+                            const sorted = dates.sort();
+                            if (sorted.length === 1) {
+                                dateRange = sorted[0];
+                            } else {
+                                dateRange = sorted[0] + ' ~ ' + sorted[sorted.length - 1];
+                            }
+                        }
+                        return { ...g, dateRange };
+                    });
+                },
+
+                get flatRows() {
+                    const rows = [];
+                    for (const group of this.sellerGroups) {
+                        rows.push({
+                            isHeader: true,
+                            key: group.seller,
+                            seller: group.seller,
+                            count: group.count,
+                            dateRange: group.dateRange,
+                            total: group.total,
+                        });
+                        for (const item of group.items) {
+                            rows.push({
+                                isHeader: false,
+                                key: item.filename,
+                                groupKey: group.seller,
+                                filename: item.filename,
+                                date: item.date || '—',
+                                invoice_no: item.invoice_no ? (item.invoice_no.length > 6 ? '...' + item.invoice_no.slice(-6) : item.invoice_no) : '—',
+                                full_invoice_no: item.invoice_no,
+                                purchaser: item.purchaser || '—',
+                                seller: item.seller || '—',
+                                total_amount: item.total_amount || 0,
+                                quarter: item.quarter,
+                            });
+                        }
+                    }
+                    return rows;
+                },
+
+                showToast(message, type = 'info') {
+                    const id = ++this.toastId;
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => { this.toasts = this.toasts.filter(t => t.id !== id); }, 4000);
+                },
+
+                handleGlobalKeys(e) {
+                    if (e.ctrlKey && e.shiftKey && e.key === 'D') { e.preventDefault(); this.showDebug = !this.showDebug; }
+                },
+
+                sseSource: null,
+                showUnrecognized: false,
+                unrecognizedFiles: [],
 
                 initApp() {
                     if (this.isDark) document.documentElement.classList.add('dark');
+                    this.connectSSE();
                     this.fetchData();
+                },
+
+                connectSSE() {
+                    if (this.sseSource) { this.sseSource.close(); }
+                    this.sseSource = new EventSource('/api/upload/sse');
+                    this.sseSource.onmessage = (e) => {
+                        try {
+                            const msg = JSON.parse(e.data);
+                            if (msg.type === 'init') {
+                                this.queueTasks = msg.tasks || [];
+                                this.queueSummary = msg.summary || {};
+                            } else if (msg.type === 'task_added') {
+                                this.showQueue = true;
+                                this.queueTasks = [...this.queueTasks, msg.task];
+                                this.queueSummary.pending++;
+                            } else if (msg.type === 'task_update') {
+                                const idx = this.queueTasks.findIndex(t => t.id === msg.task.id);
+                                if (idx >= 0) {
+                                    this.queueTasks[idx] = msg.task;
+                                } else {
+                                    this.queueTasks.push(msg.task);
+                                }
+                                this._recalcSummary();
+                                if (this.queueSummary.processing === 0 && this.queueSummary.pending === 0 && this.queueTasks.length > 0) {
+                                    this.fetchData();
+                                }
+                            }
+                        } catch (err) { console.error('SSE parse error:', err); }
+                    };
+                    this.sseSource.onerror = () => {
+                        console.log('SSE connection lost, reconnecting...');
+                        this.sseSource.close();
+                        setTimeout(() => this.connectSSE(), 3000);
+                    };
+                },
+
+                _recalcSummary() {
+                    this.queueSummary = {
+                        pending: this.queueTasks.filter(t => t.status === 'pending').length,
+                        processing: this.queueTasks.filter(t => t.status === 'processing').length,
+                        completed: this.queueTasks.filter(t => t.status === 'completed').length,
+                        failed: this.queueTasks.filter(t => t.status === 'failed').length,
+                    };
                 },
 
                 toggleTheme() {
                     this.isDark = !this.isDark;
-                    if (this.isDark) {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('theme', 'dark');
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('theme', 'light');
-                    }
+                    if (this.isDark) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); }
+                    else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); }
                 },
 
-                toggleLang() {
-                    this.lang = this.lang === 'en' ? 'zh' : 'en';
-                    localStorage.setItem('lang', this.lang);
-                },
+                toggleLang() { this.lang = this.lang === 'en' ? 'zh' : 'en'; localStorage.setItem('lang', this.lang); },
 
                 sortBy(col) {
-                    if (this.sortCol === col) {
-                        this.sortAsc = !this.sortAsc;
-                    } else {
-                        this.sortCol = col;
-                        this.sortAsc = true;
-                    }
+                    if (this.sortCol === col) { this.sortAsc = !this.sortAsc; }
+                    else { this.sortCol = col; this.sortAsc = true; }
                 },
 
-                toggleExpand(invoiceNo) {
-                    // Use a Set-like logic or simply an array of IDs
-                    if (this.expandedItems.includes(invoiceNo)) {
-                        this.expandedItems = this.expandedItems.filter(id => id !== invoiceNo);
-                    } else {
-                        this.expandedItems.push(invoiceNo);
-                    }
+                toggleExpand(id) {
+                    if (this.expandedItems.includes(id)) { this.expandedItems = this.expandedItems.filter(i => i !== id); }
+                    else { this.expandedItems.push(id); }
                 },
 
-                isExpanded(invoiceNo) {
-                    return this.expandedItems.includes(invoiceNo);
-                },
+                isExpanded(id) { return this.expandedItems.includes(id); },
 
                 async fetchData() {
                     this.loading = true;
                     try {
                         const res = await fetch('/api/invoices');
-                        const data = await res.json();
-                        this.invoices = data;
-                        // Reset expanded state on refresh
+                        const json = await res.json();
+                        this.invoices = json.data || json;
                         this.expandedItems = [];
                     } catch (e) {
                         console.error(e);
-                        alert('Failed to fetch data');
-                    } finally {
-                        this.loading = false;
-                    }
+                        this.showToast('Failed to fetch data', 'error');
+                    } finally { this.loading = false; }
                 },
 
                 async handleUpload(e) {
                     const files = e.target.files;
                     if (!files.length) return;
-
-                    const formData = new FormData();
+                    this.uploading = true;
+                    this.showQueue = true;
+                    this.queueSummary = { pending: files.length, processing: 0, completed: 0, failed: 0 };
+                    this.queueTasks = [];
                     for (let i = 0; i < files.length; i++) {
-                        formData.append('files', files[i]);
+                        this.queueTasks.push({ id: `pending_${i}`, filename: files[i].name, status: 'pending', progress: 0 });
                     }
-
+                    await this.$nextTick();
+                    const formData = new FormData();
+                    for (let i = 0; i < files.length; i++) { formData.append('files', files[i]); }
                     try {
-                        await fetch('/api/upload', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        await this.fetchData();
+                        const res = await fetch('/api/upload/queued', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.tasks && data.tasks.length > 0) {
+                            this.showToast(`${data.tasks.length} file(s) uploaded, processing...`, 'info');
+                        }
+                        if (data.errors && data.errors.length > 0) {
+                            this.showToast(data.errors.join('; '), 'error');
+                        }
+                        if (!data.tasks || data.tasks.length === 0) {
+                            this.showToast('No files were uploaded', 'error');
+                        }
                     } catch (e) {
-                        alert('Upload failed');
+                        this.showToast('Upload failed: ' + e.message, 'error');
+                    } finally {
+                        this.uploading = false;
                     }
                     e.target.value = '';
                 },
 
-                async handleDeduplicate() {
-                    if (!confirm(this.lang === 'zh' ? '确定要移动所有重复发票到 dump 目录吗？' : 'Move all duplicates to dump folder?')) return;
-
-                    this.dedupLoading = true;
+                async pollQueue() {
                     try {
-                        const res = await fetch('/api/deduplicate', { method: 'POST' });
+                        const res = await fetch('/api/upload/status');
                         const data = await res.json();
-                        if (data.moved_count > 0) {
-                            alert(this.t('deduplicateSuccess'));
-                        } else {
-                            alert(this.t('deduplicateEmpty'));
+                        this.queueTasks = data.tasks || [];
+                        this.queueSummary = data.summary || {};
+                        if (this.queueSummary.processing > 0 || this.queueSummary.pending > 0) {
+                            clearTimeout(this.queuePollTimer);
+                            this.queuePollTimer = setTimeout(() => this.pollQueue(), 1000);
+                        } else if (this.queueTasks.length > 0) {
+                            this.fetchData();
                         }
-                        await this.fetchData();
-                    } catch (e) {
-                        alert('Deduplication failed');
-                    } finally {
-                        this.dedupLoading = false;
-                    }
+                    } catch (e) { console.error(e); }
                 },
 
                 async handleOrganize() {
+                    if (!confirm(this.lang === 'zh' ? this.t('organizeConfirm') : this.t('organizeConfirm'))) return;
                     this.orgLoading = true;
                     try {
-                        const res = await fetch('/api/organize', { method: 'POST' });
-                        const data = await res.json();
-                        alert(`${this.t('organizeSuccess')} (Count: ${data.message})`);
+                        const res1 = await fetch('/api/deduplicate', { method: 'POST' });
+                        const data1 = await res1.json();
+                        const res2 = await fetch('/api/organize', { method: 'POST' });
+                        const data2 = await res2.json();
+                        const msg = this.lang === 'zh'
+                            ? `去重: ${data1.moved_count} 个重复文件已移入 dump\n整理: ${data2.message}`
+                            : `Dedup: ${data1.moved_count} moved to dump\nOrganize: ${data2.message}`;
+                        this.showToast(msg, 'success');
+                        this.loadStage = 'idle';
+                        await this.fetchData();
                     } catch (e) {
-                        alert(this.t('organizeError'));
-                    } finally {
-                        this.orgLoading = false;
+                        this.showToast(this.t('organizeError'), 'error');
+                    } finally { this.orgLoading = false; }
+                },
+
+                async loadUnrecognized() {
+                    try {
+                        const res = await fetch('/api/unrecognized');
+                        const data = await res.json();
+                        this.unrecognizedFiles = data.data || [];
+                        this.showUnrecognized = true;
+                    } catch (e) {
+                        this.showToast('Failed to load unrecognized files', 'error');
+                    }
+                },
+
+                async deleteUnrecognized(filename) {
+                    if (!confirm(this.lang === 'zh' ? this.t('unrecognizedConfirm') : this.t('unrecognizedConfirm'))) return;
+                    try {
+                        await fetch(`/api/invoices/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+                        this.unrecognizedFiles = this.unrecognizedFiles.filter(f => f.filename !== filename);
+                        this.showToast('File deleted', 'success');
+                    } catch (e) {
+                        this.showToast('Delete failed', 'error');
                     }
                 },
 
                 async exportZip(purchaser, quarter) {
                     try {
-                        const url = `/api/export/${encodeURIComponent(purchaser)}/${encodeURIComponent(quarter)}`;
-                        // Trigger download
-                        window.location.href = url;
-                    } catch (e) {
-                        alert(this.t('exportError'));
-                    }
+                        window.location.href = `/api/export/${encodeURIComponent(purchaser)}/${encodeURIComponent(quarter)}`;
+                    } catch (e) { this.showToast(this.t('exportError'), 'error'); }
                 },
 
                 async deleteItem(item) {
                     if (!confirm(this.lang === 'zh' ? '确定要删除此文件吗？' : 'Delete this file?')) return;
-
                     const files = item.filename.split(', ');
-
                     for (let f of files) {
-                        try {
-                            await fetch(`/api/invoices/${encodeURIComponent(f)}`, { method: 'DELETE' });
-                        } catch (e) { console.error(e); }
+                        try { await fetch(`/api/invoices/${encodeURIComponent(f)}`, { method: 'DELETE' }); }
+                        catch (e) { console.error(e); }
                     }
+                    // Remove from local array for instant update
+                    this.invoices = this.invoices.filter(i => i.filename !== item.filename);
+                    this.expandedItems = this.expandedItems.filter(id => id !== item.invoice_no && id !== item.filename);
+                    this.showToast('File deleted', 'success');
+                },
 
-                    await this.fetchData();
+                async openDebug(filename) {
+                    try {
+                        const res = await fetch(`/api/invoices/${encodeURIComponent(filename)}/debug`);
+                        const data = await res.json();
+                        this.debugRawText = data.raw_text || '';
+                        this.debugResult = data;
+                        this.debugMatchResult = null;
+                        this.debugRegexError = null;
+                        this.debugPattern = '';
+                        this.showDebug = true;
+                    } catch (e) { this.showToast('Failed to load debug info', 'error'); }
+                },
+
+                async testDebugRegex() {
+                    if (!this.debugPattern || !this.debugRawText) return;
+                    try {
+                        const res = await fetch('/api/debug/test-rule', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ pattern: this.debugPattern, text: this.debugRawText })
+                        });
+                        const data = await res.json();
+                        this.debugMatchResult = data;
+                        this.debugRegexError = data.valid ? null : data.error;
+                    } catch (e) { this.debugRegexError = 'Request failed'; }
+                },
+
+                async addDebugRule() {
+                    if (!this.debugPattern) return;
+                    const fields = ['invoice_no', 'date', 'amount', 'purchaser', 'seller'];
+                    const field = prompt(`Field (${fields.join(', ')}):`, 'invoice_no');
+                    if (!field || !fields.includes(field)) { this.showToast('Invalid field', 'error'); return; }
+                    this.debugField = field;
+                    try {
+                        await fetch('/api/debug/add-rule', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ field, pattern: this.debugPattern, desc: 'User-added via debug panel' })
+                        });
+                        this.showToast('Rule added successfully!', 'success');
+                    } catch (e) { this.showToast('Failed to add rule', 'error'); }
                 },
 
                 get filteredData() {
                     let data = this.invoices;
-
-                    // Filter
                     if (this.search) {
-                        const cleanSearch = this.search.toLowerCase();
+                        const s = this.search.toLowerCase();
                         data = data.filter(i => {
-                            // Helper to safely check fields
-                            const check = (val) => val && String(val).toLowerCase().includes(cleanSearch);
-
-                            return check(i.invoice_no) ||
-                                check(i.purchaser) ||
-                                check(i.seller) ||
-                                check(i.filename) ||
-                                check(i.total_amount);
+                            const c = (v) => v && String(v).toLowerCase().includes(s);
+                            return c(i.invoice_no) || c(i.purchaser) || c(i.seller) || c(i.filename) || c(i.total_amount);
                         });
                     }
-
-                    // Sort
                     return data.sort((a, b) => {
-                        let va = a[this.sortCol];
-                        let vb = b[this.sortCol];
-
-                        // Handle nulls
-                        if (va === null) va = "";
-                        if (vb === null) vb = "";
-
-                        // Numeric check for amount
-                        if (this.sortCol === 'total_amount') {
-                            va = parseFloat(va) || 0;
-                            vb = parseFloat(vb) || 0;
-                        } else {
-                            if (typeof va === 'string') va = va.toLowerCase();
-                            if (typeof vb === 'string') vb = vb.toLowerCase();
-                        }
-
+                        let va = a[this.sortCol], vb = b[this.sortCol];
+                        if (va === null) va = ""; if (vb === null) vb = "";
+                        if (this.sortCol === 'total_amount') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+                        else { if (typeof va === 'string') va = va.toLowerCase(); if (typeof vb === 'string') vb = vb.toLowerCase(); }
                         if (va < vb) return this.sortAsc ? -1 : 1;
                         if (va > vb) return this.sortAsc ? 1 : -1;
                         return 0;
@@ -609,61 +831,34 @@
                 },
 
                 get groupedData() {
-                    // Group by Purchaser -> Quarter -> Seller
                     const groups = {};
-
                     this.filteredData.forEach(item => {
                         const p = item.purchaser || 'Unknown Purchaser';
                         const q = item.quarter || 'Unknown Quarter';
                         const s = item.seller || 'Unknown Seller';
-
                         if (!groups[p]) groups[p] = { total: 0, quarters: {} };
                         if (!groups[p].quarters[q]) groups[p].quarters[q] = { total: 0, sellers: {} };
                         if (!groups[p].quarters[q].sellers[s]) groups[p].quarters[q].sellers[s] = { total: 0, items: [] };
-
                         groups[p].total += (item.total_amount || 0);
                         groups[p].quarters[q].total += (item.total_amount || 0);
                         groups[p].quarters[q].sellers[s].total += (item.total_amount || 0);
                         groups[p].quarters[q].sellers[s].items.push(item);
                     });
-
-                    // Convert to sorted array hierarchy
                     return Object.keys(groups).sort().map(pKey => {
                         const quartersObj = groups[pKey].quarters;
-
                         const quartersArr = Object.keys(quartersObj).sort().reverse().map(qKey => {
                             const sellersObj = quartersObj[qKey].sellers;
-                            const sellersArr = Object.keys(sellersObj).map(sKey => ({
-                                name: sKey,
-                                ...sellersObj[sKey]
-                            })).sort((a, b) => b.total - a.total);
-
-                            return {
-                                name: qKey,
-                                total: quartersObj[qKey].total,
-                                sellers: sellersArr
-                            };
+                            const sellersArr = Object.keys(sellersObj).map(sKey => ({ name: sKey, ...sellersObj[sKey] })).sort((a, b) => b.total - a.total);
+                            return { name: qKey, total: quartersObj[qKey].total, sellers: sellersArr };
                         });
-
-                        return {
-                            name: pKey,
-                            total: groups[pKey].total,
-                            quarters: quartersArr
-                        };
+                        return { name: pKey, total: groups[pKey].total, quarters: quartersArr };
                     });
                 },
 
-                get totalAmount() {
-                    return this.filteredData.reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
-                },
-
-                get uniqueSellers() {
-                    const sellers = new Set(this.filteredData.map(i => i.seller).filter(Boolean));
-                    return sellers.size;
-                }
+                get totalAmount() { return this.filteredData.reduce((acc, curr) => acc + (curr.total_amount || 0), 0); },
+                get uniqueSellers() { return new Set(this.filteredData.map(i => i.seller).filter(Boolean)).size; }
             }
         }
     </script>
 </body>
-
 </html>

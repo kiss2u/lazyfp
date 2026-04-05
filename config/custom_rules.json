@@ -1,0 +1,31 @@
+{
+  "invoice_no": [],
+  "date": {
+    "primary": [],
+    "fallback": [
+      {
+        "pattern": "test",
+        "flags": 0,
+        "desc": "test"
+      },
+      {
+        "pattern": "test",
+        "flags": 0,
+        "desc": "test"
+      },
+      {
+        "pattern": "test",
+        "flags": 0,
+        "desc": "test"
+      },
+      {
+        "pattern": "test",
+        "flags": 0,
+        "desc": "test"
+      }
+    ]
+  },
+  "amount": [],
+  "purchaser": [],
+  "seller": []
+}

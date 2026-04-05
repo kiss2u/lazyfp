@@ -1,0 +1,25 @@
+paths:
+  input_dir: "fp"
+  output_file: "invoice_summary.xlsx"
+  log_file: "extraction.log"
+  cache_file: "invoice_cache.json"
+  rules_file: "config/rules.json"
+  custom_rules_file: "config/custom_rules.json"
+
+upload:
+  max_file_size: 10485760  # 10MB
+  allowed_extensions: [".pdf"]
+  allowed_magic: "%PDF-"    # PDF file header signature
+
+extraction:
+  max_workers: 4            # Concurrent parsing workers
+  timeout_per_file: 30      # Per-file timeout in seconds
+
+queue:
+  max_queue_size: 1000
+  worker_count: 2
+
+app:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["*"]
