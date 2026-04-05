@@ -5,6 +5,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
 
 # Virtual environments
 .venv/
@@ -30,6 +31,3 @@ fp/organized/
 fp/*.pdf
 invoice_cache.json
 invoice_summary.xlsx
-
-# Lock files (keep pyproject.toml, ignore uv.lock for portability)
-uv.lock
