@@ -31,3 +31,6 @@ fp/organized/
 fp/*.pdf
 invoice_cache.json
 invoice_summary.xlsx
+
+# Local Documentation
+PROJECT_CONTEXT.md
