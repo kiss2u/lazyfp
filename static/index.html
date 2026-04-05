@@ -67,8 +67,8 @@
                         <span x-show="queueSummary.processing > 0" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center" x-text="queueSummary.processing"></span>
                     </button>
                     <button @click="toggleLang()"
-                        class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                        <span x-text="lang === 'en' ? '中文' : 'English'" class="text-sm font-medium"></span>
+                        class="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition text-sm font-bold"
+                        x-text="lang === 'en' ? '中' : 'EN'">
                     </button>
                     <button @click="toggleTheme()"
                         class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition">
@@ -76,7 +76,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
                         <svg x-show="!isDark" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 24.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
                         </svg>
                     </button>
                 </div>
@@ -98,7 +98,11 @@
                     <h3 class="font-bold text-lg" x-text="t('uploadQueue')"></h3>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button @click="pollQueue()" class="text-sm text-primary hover:underline" x-text="t('refresh')"></button>
+                    <button @click="pollQueue()" class="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-primary transition" title="Refresh">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </button>
                     <button @click="showQueue = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none">&times;</button>
                 </div>
             </div>
@@ -220,72 +224,71 @@
         <!-- Table View -->
         <div x-show="!isGrouped" class="bg-white dark:bg-darkcard shadow rounded-lg overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead class="bg-gray-50 dark:bg-gray-800">
-                        <tr>
-                            <th @click="sortBy('date')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('date')"></span> <span x-show="sortCol === 'date'" x-text="sortAsc ? '↑' : '↓'"></span>
-                            </th>
-                            <th @click="sortBy('invoice_no')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('invoiceNo')"></span> <span x-show="sortCol === 'invoice_no'" x-text="sortAsc ? '↑' : '↓'"></span>
-                            </th>
-                            <th @click="sortBy('purchaser')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('purchaser')"></span> <span x-show="sortCol === 'purchaser'" x-text="sortAsc ? '↑' : '↓'"></span>
-                            </th>
-                            <th @click="sortBy('seller')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('seller')"></span> <span x-show="sortCol === 'seller'" x-text="sortAsc ? '↑' : '↓'"></span>
-                            </th>
-                            <th @click="sortBy('total_amount')" class="cursor-pointer hover:text-primary px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                <span x-text="t('amount')"></span> <span x-show="sortCol === 'total_amount'" x-text="sortAsc ? '↑' : '↓'"></span>
-                            </th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" x-text="t('actions')"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white dark:bg-darkcard divide-y divide-gray-200 dark:divide-gray-700">
-                        <template x-for="(item, index) in filteredData" :key="item.invoice_no || index">
-                            <template x-if="true">
-                                <tr @click="toggleExpand(item.invoice_no || item.filename)" class="hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                        <div class="flex items-center gap-2">
-                                            <svg class="w-4 h-4 transition-transform duration-200" :class="isExpanded(item.invoice_no || item.filename) ? 'transform rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                            </svg>
-                                            <span x-text="item.date"></span>
+                <!-- Header -->
+                <div class="flex min-w-[960px] bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <div class="w-10 px-6 py-3"></div>
+                    <div @click="sortBy('date')" class="flex-1 px-6 py-3 cursor-pointer hover:text-primary text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span x-text="t('date')"></span> <span x-show="sortCol === 'date'" x-text="sortAsc ? '↑' : '↓'"></span>
+                    </div>
+                    <div @click="sortBy('invoice_no')" class="flex-1 px-6 py-3 cursor-pointer hover:text-primary text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span x-text="t('invoiceNo')"></span> <span x-show="sortCol === 'invoice_no'" x-text="sortAsc ? '↑' : '↓'"></span>
+                    </div>
+                    <div @click="sortBy('purchaser')" class="flex-1 px-6 py-3 cursor-pointer hover:text-primary text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span x-text="t('purchaser')"></span> <span x-show="sortCol === 'purchaser'" x-text="sortAsc ? '↑' : '↓'"></span>
+                    </div>
+                    <div @click="sortBy('seller')" class="flex-1 px-6 py-3 cursor-pointer hover:text-primary text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span x-text="t('seller')"></span> <span x-show="sortCol === 'seller'" x-text="sortAsc ? '↑' : '↓'"></span>
+                    </div>
+                    <div @click="sortBy('total_amount')" class="w-[140px] px-6 py-3 cursor-pointer hover:text-primary text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <span x-text="t('amount')"></span> <span x-show="sortCol === 'total_amount'" x-text="sortAsc ? '↑' : '↓'"></span>
+                    </div>
+                    <div class="w-[60px] px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" x-text="t('actions')"></div>
+                </div>
+                <!-- Rows -->
+                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <template x-for="(item, index) in filteredData" :key="item.filename || index">
+                        <div>
+                            <div @click="expandedKey = expandedKey === (item.invoice_no || item.filename) ? null : (item.invoice_no || item.filename)" class="flex min-w-[960px] hover:bg-gray-50 dark:hover:bg-gray-800 transition cursor-pointer">
+                                <div class="w-10 px-6 py-4 flex items-center">
+                                    <svg class="w-4 h-4 text-gray-400 transition-transform duration-200" :class="expandedKey === (item.invoice_no || item.filename) ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 px-6 py-4 text-sm text-gray-500 dark:text-gray-400 truncate" x-text="item.date"></div>
+                                <div class="flex-1 px-6 py-4 text-sm font-medium text-gray-900 dark:text-white truncate" x-text="item.invoice_no"></div>
+                                <div class="flex-1 px-6 py-4 text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" :title="item.purchaser" x-text="item.purchaser"></div>
+                                <div class="flex-1 px-6 py-4 text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" :title="item.seller" x-text="item.seller"></div>
+                                <div class="w-[140px] px-6 py-4 text-sm font-bold text-gray-900 dark:text-green-400 text-right tabular-nums" x-text="'¥' + (item.total_amount || 0).toFixed(2)"></div>
+                                <div class="w-[60px] px-6 py-4 text-right" @click.stop>
+                                    <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div x-show="expandedKey === (item.invoice_no || item.filename)" class="bg-gray-50 dark:bg-gray-900 px-6 py-4">
+                                <div class="ml-10 space-y-2 text-sm">
+                                    <div class="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <span class="text-xs font-semibold text-gray-400 uppercase" x-text="t('quarter')"></span>
+                                            <p class="text-gray-900 dark:text-white" x-text="item.quarter || '—'"></p>
                                         </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white" x-text="item.invoice_no"></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" :title="item.purchaser" x-text="item.purchaser"></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs" :title="item.seller" x-text="item.seller"></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-green-400" x-text="'¥' + (item.total_amount || 0).toFixed(2)"></td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" @click.stop>
-                                        <button @click="deleteItem(item)" class="text-red-600 hover:text-red-900 dark:hover:text-red-400 ml-2">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                            </svg>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr x-show="isExpanded(item.invoice_no || item.filename)" x-transition class="bg-gray-50 dark:bg-gray-900">
-                                    <td colspan="6" class="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <span class="font-semibold block mb-1" x-text="t('quarter') + ':'"></span>
-                                                <span x-text="item.quarter || '—'"></span>
-                                            </div>
-                                            <div class="md:col-span-2">
-                                                <span class="font-semibold block mb-1">Filename:</span>
-                                                <span x-text="item.filename || '—'" class="text-xs break-all"></span>
-                                            </div>
+                                        <div class="col-span-2">
+                                            <span class="text-xs font-semibold text-gray-400 uppercase" x-text="t('filename')"></span>
+                                            <p class="text-gray-600 dark:text-gray-300 text-xs break-all" x-text="item.filename || '—'"></p>
                                         </div>
-                                    </td>
-                                </tr>
-                            </template>
-                        </template>
-                        <tr x-show="!loading && filteredData.length === 0">
-                            <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400" x-text="t('noData')"></td>
-                        </tr>
-                    </tbody>
-                </table>
+                                    </div>
+                                    <div>
+                                        <span class="text-xs font-semibold text-gray-400 uppercase">开票内容</span>
+                                        <p class="text-gray-600 dark:text-gray-300 text-xs mt-1" x-text="item.raw_text ? item.raw_text.substring(0, 200) + (item.raw_text.length > 200 ? '...' : '') : '—'"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!loading && filteredData.length === 0" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400" x-text="t('noData')"></div>
+                </div>
             </div>
         </div>
 
@@ -302,7 +305,12 @@
                             <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                                 <div class="flex items-center gap-2">
                                     <span class="text-lg font-bold text-gray-900 dark:text-white" x-text="quarter.name"></span>
-                                    <span class="px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200" x-text="t('quarter')"></span>
+                                    <span class="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <span x-text="quarter.sellers.reduce((a, s) => a + s.items.length, 0)"></span>
+                                    </span>
                                 </div>
                                 <div class="flex items-center gap-4">
                                     <button @click="exportZip(purchaserGroup.name, quarter.name)" class="text-sm bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded transition flex items-center gap-1">
@@ -320,7 +328,12 @@
                                         <div class="px-4 py-2 bg-white dark:bg-gray-900 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" @click="seller.expanded = !seller.expanded" x-data="{ expanded: false }">
                                             <div class="font-medium text-gray-700 dark:text-gray-300" x-text="seller.name"></div>
                                             <div class="flex items-center gap-4">
-                                                <span class="text-sm text-gray-500" x-text="seller.items.length + ' invoices'"></span>
+                                                <span class="text-sm text-gray-500 flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            <span x-text="seller.items.length"></span>
+                                        </span>
                                                 <span class="font-bold text-gray-900 dark:text-white" x-text="'¥' + seller.total.toFixed(2)"></span>
                                             </div>
                                         </div>
@@ -433,7 +446,7 @@
         function app() {
             return {
                 invoices: [],
-                expandedItems: [],
+                expandedKey: null,
                 search: '',
                 lang: localStorage.getItem('lang') || 'zh',
                 isDark: localStorage.getItem('theme') === 'dark',
@@ -460,7 +473,7 @@
                 translations: {
                     en: {
                         upload: "Upload PDF", uploading: "Uploading...",
-                        toggleGroup: "Quarter View", searchPlaceholder: "Search invoices...",
+                        toggleGroup: "Quarter Organize", searchPlaceholder: "Search invoices...",
                         totalInvoices: "Total Invoices", totalAmount: "Total Amount", uniqueSellers: "Unique Sellers",
                         date: "Date", invoiceNo: "Invoice No", purchaser: "Purchaser", seller: "Seller",
                         amount: "Amount", actions: "Actions", noData: "No invoices found.",
@@ -471,11 +484,11 @@
                         organizeConfirm: "This will deduplicate (move duplicates to dump) then organize by purchaser/quarter. Continue?",
                         unrecognized: "Review", unrecognizedTitle: "Unrecognized Files", noUnrecognized: "No unrecognized files.",
                         unrecognizedConfirm: "Delete this file?",
-                        invoices: "Invoices", dateRange: "Date Range", total: "Total"
+                        invoices: "Invoices", dateRange: "Date Range", total: "Total", filename: "Filename"
                     },
                     zh: {
                         upload: "上传发票", uploading: "上传中...",
-                        toggleGroup: "季度展示", searchPlaceholder: "搜索发票...",
+                        toggleGroup: "季度整理", searchPlaceholder: "搜索发票...",
                         totalInvoices: "发票总数", totalAmount: "总金额", uniqueSellers: "销售方数量",
                         date: "开票日期", invoiceNo: "发票号码", purchaser: "购买方", seller: "销售方",
                         amount: "金额", actions: "操作", noData: "未找到发票。",
@@ -486,7 +499,7 @@
                         organizeConfirm: "将先去重（重复发票移入 dump），再按购买方/季度整理，是否继续？",
                         unrecognized: "待确认", unrecognizedTitle: "疑似非发票文件", noUnrecognized: "没有需要确认的文件。",
                         unrecognizedConfirm: "确定删除此文件吗？",
-                        invoices: "发票数", dateRange: "日期范围", total: "合计金额"
+                        invoices: "发票数", dateRange: "日期范围", total: "合计金额", filename: "文件名"
                     }
                 },
 
@@ -639,20 +652,13 @@
                     else { this.sortCol = col; this.sortAsc = true; }
                 },
 
-                toggleExpand(id) {
-                    if (this.expandedItems.includes(id)) { this.expandedItems = this.expandedItems.filter(i => i !== id); }
-                    else { this.expandedItems.push(id); }
-                },
-
-                isExpanded(id) { return this.expandedItems.includes(id); },
-
                 async fetchData() {
                     this.loading = true;
                     try {
                         const res = await fetch('/api/invoices');
                         const json = await res.json();
                         this.invoices = json.data || json;
-                        this.expandedItems = [];
+                        this.expandedKey = null;
                     } catch (e) {
                         console.error(e);
                         this.showToast('Failed to fetch data', 'error');
@@ -761,9 +767,9 @@
                         try { await fetch(`/api/invoices/${encodeURIComponent(f)}`, { method: 'DELETE' }); }
                         catch (e) { console.error(e); }
                     }
-                    // Remove from local array for instant update
+                    const key = item.invoice_no || item.filename;
                     this.invoices = this.invoices.filter(i => i.filename !== item.filename);
-                    this.expandedItems = this.expandedItems.filter(id => id !== item.invoice_no && id !== item.filename);
+                    if (this.expandedKey === key) this.expandedKey = null;
                     this.showToast('File deleted', 'success');
                 },
 
