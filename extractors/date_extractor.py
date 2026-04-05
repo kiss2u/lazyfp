@@ -7,15 +7,18 @@ from extractors.base import BaseExtractor
 class DateExtractor(BaseExtractor):
     def clean(self, value: str) -> str:
         value = value.strip()
-        # Extract just the date portion if extra text leaked through
-        m = re.search(r"(\d{4}[-/年.]\d{1,2}[-/月.]\d{1,2})", value)
+        m = re.search(r"(\d{4})[-/年.](\d{1,2})[-/月.](\d{1,2})", value)
         if m:
-            value = m.group(1)
+            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
         value = value.replace("/", "-").replace(".", "-")
         if " " in value:
             parts = value.split()
             if len(parts) == 3:
-                return f"{parts[0]}年{parts[1]}月{parts[2]}日"
+                try:
+                    dt = datetime.strptime(f"{parts[0]}-{parts[1]}-{parts[2]}", "%Y-%m-%d")
+                    return dt.strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
         return value
 
     def validate(self, value: str) -> bool:
@@ -31,7 +34,7 @@ class DateExtractor(BaseExtractor):
         all_digits = "".join(re.findall(r"\d", text))
         matches = re.finditer(r"(20[23]\d)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])", all_digits)
         for m in matches:
-            return f"{m.group(1)}年{m.group(2)}月{m.group(3)}日"
+            return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
         return None
 
     def parse_quarter(self, date_str: str) -> str:
