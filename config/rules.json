@@ -2,11 +2,11 @@
   "invoice_no": {
     "primary": [
       {"pattern": "发\\s*票\\s*号\\s*码[:：]\\s*(\\d+)", "flags": 0, "desc": "Standard invoice code header"},
-      {"pattern": "发票号码[:：]?\\s*(\\d{20}|\\d{8,12})", "flags": 0, "desc": "Full-electric 20-digit or traditional 8-12 digit"}
+      {"pattern": "发票号码[:：]?\\s*(\\d{20}|\\d{8,12})", "flags": 0, "desc": "Full-electric 20-digit or traditional 8-12 digit"},
+      {"pattern": "客户账号\\s*(\\d+)", "flags": 0, "desc": "China Mobile customer account as identifier"}
     ],
     "fallback": [
       {"pattern": "\\b\\d{20}\\b", "flags": 0, "desc": "Pure 20-digit number (full-electric)"},
-      {"pattern": "客户账号[:：]?\\s*(\\d+)", "flags": 0, "desc": "China Mobile bill customer account"},
       {"pattern": "集团编号[:：]?\\s*(\\d+)", "flags": 0, "desc": "China Mobile bill group number"},
       {"pattern": "监\\s*(\\d{8})\\b", "flags": 0, "desc": "Old unified invoice monitor number"},
       {"pattern": "号码[:：]?(\\d{8,20})", "flags": 0, "desc": "Generic number field"},
@@ -18,7 +18,8 @@
     "primary": [
       {"pattern": "开\\s*票\\s*日\\s*期[:：]\\s*(\\d{4}年\\d{1,2}月\\d{1,2}日)", "flags": 0, "desc": "Invoice date label with Chinese date"},
       {"pattern": "开\\s*票\\s*日\\s*期[:：]\\s*(\\d{4}[-/]\\d{1,2}[-/]\\d{1,2})", "flags": 0, "desc": "Invoice date label with ISO date"},
-      {"pattern": "开\\s*票\\s*日\\s*期[:：]\\s*(\\S+?)(?=\\s|购|销|买|售|方|信|统|纳|$)", "flags": 0, "desc": "Invoice date label with lookahead stop"}
+      {"pattern": "开\\s*票\\s*日\\s*期[:：]\\s*(\\S+?)(?=\\s|购|销|买|售|方|信|统|纳|$)", "flags": 0, "desc": "Invoice date label with lookahead stop"},
+      {"pattern": "打印日期\\s*(\\d{4}/\\d{1,2}/\\d{1,2})", "flags": 0, "desc": "China Mobile print date"}
     ],
     "fallback": [
       {"pattern": "(20\\d{2}年\\d{1,2}月\\d{1,2}日)", "flags": 0, "desc": "Chinese date format"},
@@ -35,6 +36,7 @@
       {"pattern": "小写[:：]?\\s*[¥￥]?\\s*([\\d,]+\\.\\d{2})", "flags": 0, "desc": "Lowercase amount with decimals"},
       {"pattern": "价\\s*税\\s*合\\s*计.*?[¥￥]?\\s*([\\d,]+\\.\\d{2})", "flags": 0, "desc": "Price-tax total"},
       {"pattern": "\\(小写\\)[¥￥]?\\s*([\\d,]+\\.\\d{2})", "flags": 0, "desc": "Small write format"},
+      {"pattern": "本期总费用\\s*[¥￥]?\\s*([\\d,]+\\.?\\d*)", "flags": 0, "desc": "China Mobile current period total"},
       {"pattern": "小\\s*写.*?[¥￥]?\\s*([\\d,]+\\.?\\d*)", "flags": 0, "desc": "Lowercase amount"}
     ],
     "fallback": [
@@ -46,20 +48,22 @@
   "purchaser": {
     "primary": [
       {"pattern": "(?:购)?名称[:：](.+?)(?:销|售|卖|纳税|统一|地址|开户)", "flags": 0, "desc": "Purchaser name label"},
-      {"pattern": "买名称\\s*[:：]?\\s*([\\u4e00-\\u9fa5()（）]{2,50}?)(?:售名称|方方|方信)", "flags": 0, "desc": "JD-style: 买名称 without colon"}
+      {"pattern": "买名称\\s*[:：]?\\s*([\\u4e00-\\u9fa5()（）]{2,50}?)(?:售名称|方方|方信)", "flags": 0, "desc": "JD-style: 买名称 without colon"},
+      {"pattern": "客户\\s+([\\u4e00-\\u9fa5()（）]{2,50})", "flags": 0, "desc": "China Mobile customer name"}
     ],
     "fallback": [
       {"pattern": "名\\s*称\\s*[:：]\\s*([^\\s]+)", "flags": 0, "desc": "Generic name label"},
       {"pattern": "名\\s*称\\s*[:：]?\\s+([^\\s:：]+)", "flags": 0, "desc": "Loose name match"},
       {"pattern": "购买方名称[:：]\\s*([^\\n:：]{2,50})", "flags": 0, "desc": "Digital-electric purchaser full label"},
-      {"pattern": "([^\n:：]{4,30}?)\\s*统一(?:信用代码|社会信用代码)[:：]\\s*[A-Z0-9]{18}", "flags": 0, "desc": "Company name via credit code reverse-lookup", "group": 1},
+      {"pattern": "([^\\n:：]{4,30}?)\\s*统一(?:信用代码|社会信用代码)[:：]\\s*[A-Z0-9]{18}", "flags": 0, "desc": "Company name via credit code reverse-lookup", "group": 1},
       {"pattern": "购方名称[:：]\\s*([^\\n:：]{2,50})", "flags": 0, "desc": "Purchaser short label"}
     ]
   },
   "seller": {
     "primary": [
       {"pattern": "(?:销|售)名称[:：](.+?)(?:买售|纳税|统一|地址|开户|复核|开票)", "flags": 0, "desc": "Seller name label"},
-      {"pattern": "售名称\\s*[:：]?\\s*([\\u4e00-\\u9fa5()（）]{2,50}?)\\s*[:：]{0,2}方", "flags": 0, "desc": "JD-style: 售名称 followed by company then 方"}
+      {"pattern": "售名称\\s*[:：]?\\s*([\\u4e00-\\u9fa5()（）]{2,50}?)\\s*[:：]{0,2}方", "flags": 0, "desc": "JD-style: 售名称 followed by company then 方"},
+      {"pattern": "(中国移动通信集团[\\u4e00-\\u9fa5]+有限公司)", "flags": 0, "desc": "China Mobile group company as seller"}
     ],
     "fallback": [
       {"pattern": "销售方名称[:：]\\s*([^\\n:：]{2,50})", "flags": 0, "desc": "Digital-electric seller full label"},

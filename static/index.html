@@ -281,7 +281,7 @@
                                     </div>
                                     <div>
                                         <span class="text-xs font-semibold text-gray-400 uppercase">开票内容</span>
-                                        <p class="text-gray-600 dark:text-gray-300 text-xs mt-1" x-text="item.raw_text ? item.raw_text.substring(0, 200) + (item.raw_text.length > 200 ? '...' : '') : '—'"></p>
+                                        <p class="text-gray-600 dark:text-gray-300 text-xs mt-1" x-text="item.invoice_content || (item.raw_text ? item.raw_text.substring(0, 200) + (item.raw_text.length > 200 ? '...' : '') : '—')"></p>
                                     </div>
                                 </div>
                             </div>
